@@ -49,7 +49,6 @@ func newConnection(dbPath string) (*DB, error) {
 			return
 		}
 
-		// Test Conn
 		if dbErr := sqlDB.Ping(); dbErr != nil {
 			err = fmt.Errorf("failed to ping database: %v", dbErr)
 			return

@@ -19,29 +19,7 @@ type App struct {
 func NewApp(cfgPath string) (*App, error) {
 	cfg := config.MustLoad(cfgPath)
 
-	// Create template engine with custom functions
 	engine := html.New("./views", ".html")
-	engine.AddFunc("slice", func(s string, start, end int) string {
-		if len(s) == 0 {
-			return ""
-		}
-		if start < 0 {
-			start = len(s) + start
-		}
-		if end <= 0 {
-			end = len(s) + end
-		}
-		if start < 0 {
-			start = 0
-		}
-		if end > len(s) {
-			end = len(s)
-		}
-		if start >= end || start >= len(s) {
-			return ""
-		}
-		return s[start:end]
-	})
 
 	httpServer := fiber.New(fiber.Config{
 		Views: engine,
@@ -72,9 +50,8 @@ func NewApp(cfgPath string) (*App, error) {
 }
 
 func (a *App) SetupRoutes() {
-	// Frontend routes
-	a.fiber.Get("/", a.handlers.RenderWallets)
-	// a.fiber.Get("/wallets", a.handlers.RenderWallets)
+	// Render routes
+	a.fiber.Get("/", a.handlers.RenderDashboard)
 
 	api := a.fiber.Group("/api")
 	api.Get("/portfolio", a.handlers.GetPortfolioStatus)

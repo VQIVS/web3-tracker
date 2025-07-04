@@ -2,108 +2,161 @@
 
 {{define "embed"}}
 <div class="card">
-    <h2>📊 Portfolio Overview</h2>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 25px;">
-        <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; border-radius: 12px; text-align: center;">
-            <h3 style="margin-bottom: 10px; font-size: 1.2rem;">Total Wallets</h3>
-            <p style="font-size: 2.5rem; font-weight: bold; margin: 0;" id="total-wallets">{{.Portfolio.TotalWallets}}</p>
+    <h2>➕ Add New Wallet</h2>
+    <form id="addWalletForm" onsubmit="addWallet(event)">
+        <div class="form-group">
+            <label for="address">Ethereum Address *</label>
+            <input type="text" id="address" name="address" placeholder="0x..." required>
         </div>
-        <div style="background: linear-gradient(135deg, #51cf66, #40c057); color: white; padding: 20px; border-radius: 12px; text-align: center;">
-            <h3 style="margin-bottom: 10px; font-size: 1.2rem;">Total Balance</h3>
-            <p style="font-size: 2.5rem; font-weight: bold; margin: 0;" id="total-balance">{{.Portfolio.TotalBalance}} ETH</p>
+        <div class="form-group">
+            <label for="label">Label (Optional)</label>
+            <input type="text" id="label" name="label" placeholder="My Wallet">
         </div>
-    </div>
-    
-    <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
-        <button onclick="updateAllBalances()" class="btn btn-success">🔄 Update All Balances</button>
-        <a href="/wallets" class="btn btn-primary">➕ Manage Wallets</a>
-    </div>
+        <button type="submit" class="btn btn-primary">➕ Add Wallet</button>
+    </form>
 
     <div class="loading">
         <div class="spinner"></div>
-        <p>Updating balances...</p>
+        <p>Adding wallet...</p>
     </div>
 </div>
 
-{{if .Portfolio.WalletBalances}}
+{{if .Wallets}}
 <div class="card">
-    <h2>💼 Wallet Balances</h2>
+    <h2>💼 Your Wallets ({{len .Wallets}})</h2>
     <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse;" id="wallets-table">
+        <table style="width: 100%; border-collapse: collapse;">
             <thead>
                 <tr style="background: #f8f9fa;">
                     <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6;">Address</th>
                     <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6;">Label</th>
                     <th style="padding: 15px; text-align: right; border-bottom: 2px solid #dee2e6;">Balance (ETH)</th>
-                    <th style="padding: 15px; text-align: center; border-bottom: 2px solid #dee2e6;">Last Updated</th>
+                    <th style="padding: 15px; text-align: center; border-bottom: 2px solid #dee2e6;">Actions</th>
                 </tr>
             </thead>
-            <tbody id="wallets-tbody">
-                {{range .Portfolio.WalletBalances}}
-                <tr style="border-bottom: 1px solid #dee2e6;" data-address="{{.Address}}">
+            <tbody>
+                {{range .Wallets}}
+                <tr style="border-bottom: 1px solid #dee2e6;" id="wallet-{{.Address}}">
                     <td style="padding: 15px; font-family: monospace; font-size: 0.9rem;">
-                        <span class="address-short">{{slice .Address 0 6}}...{{slice .Address -4 0}}</span>
-                        <button onclick="copyAddress('{{.Address}}')" style="margin-left: 10px; background: none; border: none; cursor: pointer; font-size: 0.8rem;">📋</button>
+                        <h3 >{{.Address}}</h3>
                     </td>
                     <td style="padding: 15px;">
                         {{if .Label}}{{.Label}}{{else}}<em style="color: #6c757d;">No label</em>{{end}}
                     </td>
-                    <td style="padding: 15px; text-align: right; font-weight: bold; color: #28a745;" class="balance-cell">{{.BalanceETH}} ETH</td>
-                    <td style="padding: 15px; text-align: center; color: #6c757d; font-size: 0.9rem;" class="updated-cell">{{.UpdatedAt.Format "15:04:05"}}</td>
+                    <td style="padding: 15px; text-align: right; font-weight: bold; color: #28a745;">{{.BalanceETH}} ETH</td>
+                    <td style="padding: 15px; text-align: center;">
+                        <button onclick="updateBalance('{{.Address}}')" class="btn btn-success" style="margin-right: 10px; padding: 8px 16px; font-size: 0.9rem;">🔄</button>
+                        <button onclick="deleteWallet('{{.Address}}')" class="btn btn-danger" style="padding: 8px 16px; font-size: 0.9rem;">🗑️</button>
+                    </td>
                 </tr>
                 {{end}}
             </tbody>
         </table>
     </div>
+    
+    <div style="margin-top: 25px; text-align: center;">
+        <button onclick="updateAllBalances()" class="btn btn-success">🔄 Update All Balances</button>
+    </div>
 </div>
 {{else}}
 <div class="card" style="text-align: center; padding: 40px;">
     <h3 style="color: #6c757d; margin-bottom: 15px;">No wallets found</h3>
-    <p style="color: #6c757d;">Add your first wallet to start tracking</p>
-    <a href="/wallets" class="btn btn-primary" style="margin-top: 15px;">➕ Add Your First Wallet</a>
+    <p style="color: #6c757d;">Add your first wallet above to start tracking</p>
 </div>
 {{end}}
 
 <script>
-// Auto-refresh portfolio data every 30 seconds without page reload
-let autoRefreshInterval;
-
-async function fetchPortfolioData() {
+async function addWallet(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    const address = formData.get('address').trim();
+    const label = formData.get('label').trim();
+    
+    if (!address) {
+        showAlert('Please enter an Ethereum address', 'error');
+        return;
+    }
+    
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        showAlert('Please enter a valid Ethereum address', 'error');
+        return;
+    }
+    
+    showLoading(true);
+    
     try {
-        const response = await fetch('/api/portfolio');
+        const response = await fetch('/api/wallet', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                address: address,
+                label: label
+            })
+        });
+        
         const data = await response.json();
         
-        if (data.success && data.data) {
-            updatePortfolioUI(data.data);
+        if (data.success) {
+            showAlert('Wallet added successfully!', 'success');
+            form.reset();
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showAlert(data.message || 'Failed to add wallet', 'error');
         }
     } catch (error) {
-        console.error('Error fetching portfolio data:', error);
+        showAlert('Error adding wallet: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+        window.location.reload();
     }
 }
 
-function updatePortfolioUI(portfolio) {
-    // Update totals
-    document.getElementById('total-wallets').textContent = portfolio.total_wallets || 0;
-    document.getElementById('total-balance').textContent = (portfolio.total_balance_eth || '0') + ' ETH';
+async function deleteWallet(address) {
+    if (!confirm('Are you sure you want to delete this wallet?')) {
+        return;
+    }
     
-    // Update wallet table
-    const tbody = document.getElementById('wallets-tbody');
-    if (tbody && portfolio.wallet_balances) {
-        portfolio.wallet_balances.forEach(wallet => {
-            const row = document.querySelector(`tr[data-address="${wallet.address}"]`);
-            if (row) {
-                const balanceCell = row.querySelector('.balance-cell');
-                const updatedCell = row.querySelector('.updated-cell');
-                
-                if (balanceCell) {
-                    balanceCell.textContent = wallet.balance_eth + ' ETH';
-                }
-                if (updatedCell) {
-                    const now = new Date();
-                    updatedCell.textContent = now.toLocaleTimeString();
-                }
-            }
+    try {
+        const response = await fetch(`/api/wallet/${address}`, {
+            method: 'DELETE'
         });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Wallet deleted successfully!', 'success');
+            document.getElementById(`wallet-${address}`).remove();
+        } else {
+            showAlert(data.message || 'Failed to delete wallet', 'error');
+        }
+    } catch (error) {
+        showAlert('Error deleting wallet: ' + error.message, 'error');
+    }
+    finally {
+        window.location.reload();}
+}
+
+async function updateBalance(address) {
+    try {
+        const response = await fetch(`/api/balance/${address}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(`Balance updated for ${formatAddress(address)}`, 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showAlert(data.message || 'Failed to update balance', 'error');
+        }
+    } catch (error) {
+        showAlert('Error updating balance: ' + error.message, 'error');
     }
 }
 
@@ -122,8 +175,9 @@ async function updateAllBalances() {
         
         if (data.success) {
             showAlert('All balances updated successfully!', 'success');
-            // Fetch updated data without page reload
-            await fetchPortfolioData();
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
         } else {
             showAlert(data.message || 'Failed to update balances', 'error');
         }
@@ -141,30 +195,5 @@ function copyAddress(address) {
         showAlert('Failed to copy address', 'error');
     });
 }
-
-function startAutoRefresh() {
-    // Refresh every 30 seconds
-    autoRefreshInterval = setInterval(fetchPortfolioData, 30000);
-}
-
-function stopAutoRefresh() {
-    if (autoRefreshInterval) {
-        clearInterval(autoRefreshInterval);
-    }
-}
-
-// Start auto-refresh when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    startAutoRefresh();
-});
-
-// Stop auto-refresh when page is hidden (tab switch, minimize, etc.)
-document.addEventListener('visibilitychange', function() {
-    if (document.hidden) {
-        stopAutoRefresh();
-    } else {
-        startAutoRefresh();
-    }
-});
 </script>
 {{end}}
