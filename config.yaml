@@ -1,0 +1,16 @@
+ethereum:
+  rpc_url: "https://rpc.ankr.com/eth/b118e7a23420a8bbe1d20b05f724e1c790dea4736970b29cde00c0abd583b407"
+  # Alternative RPC URLs:
+  # rpc_url: "https://eth-mainnet.alchemyapi.io/v2/YOUR_API_KEY"
+  # rpc_url: "https://cloudflare-eth.com"
+
+database:
+  path: "./sqlite.db"
+
+server:
+  port: "8080"
+
+wallets:
+  file_path: "./wallets.json"
+
+

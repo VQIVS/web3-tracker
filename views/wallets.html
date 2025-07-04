@@ -1,0 +1,263 @@
+{{template "layout" .}}
+
+{{define "embed"}}
+<div class="card">
+    <h2>➕ Add New Wallet</h2>
+    <form id="addWalletForm" onsubmit="addWallet(event)">
+        <div class="form-group">
+            <label for="address">Ethereum Address *</label>
+            <input type="text" id="address" name="address" placeholder="0x..." required>
+        </div>
+        <div class="form-group">
+            <label for="label">Label (Optional)</label>
+            <input type="text" id="label" name="label" placeholder="My Wallet">
+        </div>
+        <button type="submit" class="btn btn-primary">➕ Add Wallet</button>
+    </form>
+
+    <div class="loading">
+        <div class="spinner"></div>
+        <p>Adding wallet...</p>
+    </div>
+</div>
+
+{{if .Wallets}}
+<div class="card">
+    <h2>💼 Your Wallets ({{len .Wallets}})</h2>
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f8f9fa;">
+                    <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6;">Address</th>
+                    <th style="padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6;">Label</th>
+                    <th style="padding: 15px; text-align: right; border-bottom: 2px solid #dee2e6;">Balance (ETH)</th>
+                    <th style="padding: 15px; text-align: center; border-bottom: 2px solid #dee2e6;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Wallets}}
+                <tr style="border-bottom: 1px solid #dee2e6;" id="wallet-{{.Address}}">
+                    <td style="padding: 15px; font-family: monospace; font-size: 0.9rem;">
+                        <span>{{slice .Address 0 6}}...{{slice .Address -4 0}}</span>
+                        <button onclick="copyAddress('{{.Address}}')" style="margin-left: 10px; background: none; border: none; cursor: pointer; font-size: 0.8rem;">📋</button>
+                    </td>
+                    <td style="padding: 15px;">
+                        {{if .Label}}{{.Label}}{{else}}<em style="color: #6c757d;">No label</em>{{end}}
+                    </td>
+                    <td style="padding: 15px; text-align: right; font-weight: bold; color: #28a745;">{{.BalanceETH}} ETH</td>
+                    <td style="padding: 15px; text-align: center;">
+                        <button onclick="updateBalance('{{.Address}}')" class="btn btn-success" style="margin-right: 10px; padding: 8px 16px; font-size: 0.9rem;">🔄</button>
+                        <button onclick="deleteWallet('{{.Address}}')" class="btn btn-danger" style="padding: 8px 16px; font-size: 0.9rem;">🗑️</button>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    
+    <div style="margin-top: 25px; text-align: center;">
+        <button onclick="updateAllBalances()" class="btn btn-success">🔄 Update All Balances</button>
+    </div>
+</div>
+{{else}}
+<div class="card" style="text-align: center; padding: 40px;">
+    <h3 style="color: #6c757d; margin-bottom: 15px;">No wallets found</h3>
+    <p style="color: #6c757d;">Add your first wallet above to start tracking</p>
+</div>
+{{end}}
+
+<script>
+async function addWallet(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    const address = formData.get('address').trim();
+    const label = formData.get('label').trim();
+    
+    if (!address) {
+        showAlert('Please enter an Ethereum address', 'error');
+        return;
+    }
+    
+    // Basic Ethereum address validation
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        showAlert('Please enter a valid Ethereum address', 'error');
+        return;
+    }
+    
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/api/wallet', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                address: address,
+                label: label
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Wallet added successfully!', 'success');
+            form.reset();
+            // Refresh the wallet list without page reload
+            await refreshWalletList();
+        } else {
+            showAlert(data.message || 'Failed to add wallet', 'error');
+        }
+    } catch (error) {
+        showAlert('Error adding wallet: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function deleteWallet(address) {
+    if (!confirm('Are you sure you want to delete this wallet?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/wallet/${address}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Wallet deleted successfully!', 'success');
+            // Remove the row from the table
+            const row = document.getElementById(`wallet-${address}`);
+            if (row) {
+                row.remove();
+            }
+            // Update the counter
+            await refreshWalletList();
+        } else {
+            showAlert(data.message || 'Failed to delete wallet', 'error');
+        }
+    } catch (error) {
+        showAlert('Error deleting wallet: ' + error.message, 'error');
+    }
+}
+
+async function updateBalance(address) {
+    const row = document.getElementById(`wallet-${address}`);
+    const balanceCell = row?.querySelector('.balance-cell');
+    
+    try {
+        const response = await fetch(`/api/balance/${address}`);
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+            // Update the balance in the UI
+            if (balanceCell) {
+                balanceCell.textContent = data.data.balance_eth + ' ETH';
+            }
+            showAlert(`Balance updated for ${formatAddress(address)}`, 'success');
+        } else {
+            showAlert(data.message || 'Failed to update balance', 'error');
+        }
+    } catch (error) {
+        showAlert('Error updating balance: ' + error.message, 'error');
+    }
+}
+
+async function updateAllBalances() {
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/api/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('All balances updated successfully!', 'success');
+            // Refresh the wallet list to show updated balances
+            await refreshWalletList();
+        } else {
+            showAlert(data.message || 'Failed to update balances', 'error');
+        }
+    } catch (error) {
+        showAlert('Error updating balances: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function refreshWalletList() {
+    try {
+        const response = await fetch('/api/wallets');
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+            updateWalletTable(data.data);
+        }
+    } catch (error) {
+        console.error('Error refreshing wallet list:', error);
+    }
+}
+
+function updateWalletTable(wallets) {
+    const tbody = document.querySelector('tbody');
+    const walletsCard = document.querySelector('.card:nth-child(2)');
+    
+    if (!wallets || wallets.length === 0) {
+        // Show no wallets message
+        if (walletsCard) {
+            walletsCard.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <h3 style="color: #6c757d; margin-bottom: 15px;">No wallets found</h3>
+                    <p style="color: #6c757d;">Add your first wallet above to start tracking</p>
+                </div>
+            `;
+        }
+        return;
+    }
+    
+    // Update wallet count in header
+    const header = walletsCard?.querySelector('h2');
+    if (header) {
+        header.textContent = `💼 Your Wallets (${wallets.length})`;
+    }
+    
+    // Update table rows
+    if (tbody) {
+        tbody.innerHTML = wallets.map(wallet => `
+            <tr style="border-bottom: 1px solid #dee2e6;" id="wallet-${wallet.address}">
+                <td style="padding: 15px; font-family: monospace; font-size: 0.9rem;">
+                    <span>${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}</span>
+                    <button onclick="copyAddress('${wallet.address}')" style="margin-left: 10px; background: none; border: none; cursor: pointer; font-size: 0.8rem;">📋</button>
+                </td>
+                <td style="padding: 15px;">
+                    ${wallet.label || '<em style="color: #6c757d;">No label</em>'}
+                </td>
+                <td style="padding: 15px; text-align: right; font-weight: bold; color: #28a745;" class="balance-cell">${wallet.balance_eth} ETH</td>
+                <td style="padding: 15px; text-align: center;">
+                    <button onclick="updateBalance('${wallet.address}')" class="btn btn-success" style="margin-right: 10px; padding: 8px 16px; font-size: 0.9rem;">🔄</button>
+                    <button onclick="deleteWallet('${wallet.address}')" class="btn btn-danger" style="padding: 8px 16px; font-size: 0.9rem;">🗑️</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+}
+
+function copyAddress(address) {
+    navigator.clipboard.writeText(address).then(() => {
+        showAlert('Address copied to clipboard!', 'success');
+    }).catch(() => {
+        showAlert('Failed to copy address', 'error');
+    });
+}
+</script>
+{{end}}
