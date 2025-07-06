@@ -1,15 +1,15 @@
-# 🔗 Web3 Wallet Tracker
+# Web3 Wallet Tracker
 
 A simple and elegant Web3 wallet tracker built with Go and Fiber that allows you to monitor Ethereum wallet balances in real-time.
 
-## ✨ Features
+##  Features
 
-- 📊 **Portfolio Dashboard** - View total balance across all tracked wallets
-- 💼 **Wallet Management** - Add, remove, and label your Ethereum wallets
-- 🔄 **Real-time Updates** - Fetch latest balances from Ethereum mainnet
-- 💾 **SQLite Database** - Lightweight local storage for wallet data
+- **Portfolio Dashboard** - View total balance across all tracked wallets
+- **Wallet Management** - Add, remove, and label your Ethereum wallets
+- **Real-time Updates** - Fetch latest balances from Ethereum mainnet
+- **SQLite Database** - Lightweight local storage for wallet data
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -76,7 +76,7 @@ web3-tracker/
 └── README.md
 ```
 
-## 🔧 Configuration
+## Configuration
 
 The application uses `config.yaml` for configuration:
 
@@ -103,7 +103,7 @@ You can use any of these Ethereum RPC providers:
 - **Cloudflare**: `https://cloudflare-eth.com`
 - **Public nodes**: Various free public Ethereum nodes
 
-## 🌐 API Endpoints
+## API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -115,7 +115,7 @@ You can use any of these Ethereum RPC providers:
 | GET | `/api/balance/:address` | Get specific wallet balance |
 | POST | `/api/update` | Update all wallet balances |
 
-## 💡 Usage
+## Usage
 
 ### Adding Wallets
 
@@ -136,7 +136,7 @@ The dashboard shows:
 - Combined ETH balance across all wallets
 - Individual wallet balances and last update times
 
-## 🛠️ Development
+## Development
 
 ### Running in Development
 
@@ -159,7 +159,7 @@ go build -o web3-tracker cmd/main.go
 ./web3-tracker
 ```
 
-## 📊 Database
+## Database
 
 The application uses SQLite for local storage. The database file (`sqlite.db`) is created automatically on first run.
 
