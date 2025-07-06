@@ -16,10 +16,3 @@ type Wallet struct {
 	UpdatedAt  time.Time      `json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 }
-
-type PortfolioStatus struct {
-	TotalWallets   int       `json:"total_wallets"`
-	TotalBalance   string    `json:"total_balance_eth"`
-	LastUpdated    time.Time `json:"last_updated"`
-	WalletBalances []Wallet  `json:"wallet_balances"`
-}

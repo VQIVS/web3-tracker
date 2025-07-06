@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/VQIVS/web3-tracker.git/api/handlers/presenter"
 	"github.com/VQIVS/web3-tracker.git/internal/entities"
 	"github.com/VQIVS/web3-tracker.git/pkg/common"
 	"gorm.io/gorm"
@@ -65,7 +66,7 @@ func (r *WalletRepository) DeleteWallet(address string) error {
 	return r.db.Unscoped().Where("address = ?", address).Delete(&entities.Wallet{}).Error
 }
 
-func (r *WalletRepository) GetPortfolioStatus() (*entities.PortfolioStatus, error) {
+func (r *WalletRepository) GetPortfolioStatus() (*presenter.PortfolioStatus, error) {
 	wallets, err := r.GetAllWallets()
 	if err != nil {
 		return nil, err
@@ -84,7 +85,7 @@ func (r *WalletRepository) GetPortfolioStatus() (*entities.PortfolioStatus, erro
 		}
 	}
 
-	return &entities.PortfolioStatus{
+	return &presenter.PortfolioStatus{
 		TotalWallets:   len(wallets),
 		TotalBalance:   common.WeiToETH(&totalWei),
 		LastUpdated:    lastUpdated,
